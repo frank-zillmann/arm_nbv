@@ -1,5 +1,8 @@
-# tum-adlr-18
-**Frank Zillmann's Advanced Deep Learning for Robotics Project: Efficient Environment Exploration and 3D Reconstruction with Reinforcement Learning and Multiple View Geometry**
+# arm_nbv
+
+**Learning next-best-view policies for a wrist-mounted camera on a robot arm to efficiently reconstruct novel scenes, combining reinforcement learning with multi-view geometry.**
+
+Originally developed by Frank Zillmann as part of the TUM Advanced Deep Learning for Robotics course (formerly `tum-adlr-18`), titled "Efficient Environment Exploration and 3D Reconstruction with Reinforcement Learning and Multiple View Geometry".
 
 <!-- ![Environment Screenshot](.github/assets/step_001_frontview_image.png) -->
 
@@ -11,8 +14,8 @@ Rollout of untrained policy, showing TCP camera depth, frontview camera RGB, bir
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/frank-zillmann/tum-adlr-18 --recursive
-cd tum-adlr-18
+git clone https://github.com/frank-zillmann/arm_nbv --recursive
+cd arm_nbv
 ```
 
 2. Run the setup script (tested on a Google Compute Engine VM with NVIDIA T4 GPU and `pytorch-2-7-cu128-ubuntu‑2404‑nvidia‑570` image):

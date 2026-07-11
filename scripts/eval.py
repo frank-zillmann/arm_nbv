@@ -3,7 +3,7 @@
 import argparse
 import numpy as np
 from stable_baselines3 import PPO
-from src.reconstruct3D_gym_wrapper import Reconstruct3DGymWrapper
+from arm_nbv.reconstruct3d_gym_wrapper import Reconstruct3DGymWrapper
 
 
 def evaluate(checkpoint: str, n_episodes: int = 10):

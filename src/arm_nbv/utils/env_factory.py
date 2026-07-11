@@ -5,8 +5,8 @@ from typing import Optional
 
 from stable_baselines3.common.monitor import Monitor
 
-from src.reconstruct3D_gym_wrapper import Reconstruct3DGymWrapper
-from configs.train_config import TrainConfig
+from arm_nbv.reconstruct3d_gym_wrapper import Reconstruct3DGymWrapper
+from arm_nbv.config import TrainConfig
 
 
 def create_reconstruction_policy(policy_name: str):
@@ -19,13 +19,13 @@ def create_reconstruction_policy(policy_name: str):
         Reconstruction policy instance with default parameters
     """
     if policy_name == "open3d":
-        from src.reconstruction_policies.open3d_reconstruction_policy import (
+        from arm_nbv.reconstruction_policies.open3d_reconstruction_policy import (
             Open3DReconstructionPolicy,
         )
         return Open3DReconstructionPolicy()
         
     elif policy_name == "nvblox":
-        from src.reconstruction_policies.nvblox_reconstruction_policy import (
+        from arm_nbv.reconstruction_policies.nvblox_reconstruction_policy import (
             NvbloxReconstructionPolicy,
         )
         return NvbloxReconstructionPolicy()

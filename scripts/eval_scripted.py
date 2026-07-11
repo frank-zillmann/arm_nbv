@@ -6,9 +6,9 @@ from datetime import datetime
 
 import numpy as np
 
-from src.robot_policies import ScriptedPolicy
-from src.utils.env_factory import create_env
-from configs.train_config import TrainConfig
+from arm_nbv.robot_policies import ScriptedPolicy
+from arm_nbv.utils.env_factory import create_env
+from arm_nbv.config import TrainConfig
 
 
 def evaluate_scripted(config: TrainConfig, n_episodes: int = 1):

@@ -20,8 +20,8 @@ from robosuite.utils.camera_utils import (
     get_real_depth_map,
 )
 
-from src.reconstruction_policies.base import BaseReconstructionPolicy
-from src.utils.render_mesh import render_mesh
+from arm_nbv.reconstruction_policies.base import BaseReconstructionPolicy
+from arm_nbv.utils.render_mesh import render_mesh
 
 
 @dataclass

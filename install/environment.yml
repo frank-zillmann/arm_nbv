@@ -1,4 +1,4 @@
-name: adlr
+name: arm_nbv
 channels:
   - conda-forge
 dependencies:

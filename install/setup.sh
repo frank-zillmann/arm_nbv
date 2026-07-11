@@ -3,8 +3,8 @@ set -e
 
 # Get environment name
 if [ -z "$1" ]; then
-    read -p "Enter environment name (default: adlr): " ENV_NAME
-    ENV_NAME=${ENV_NAME:-adlr}
+    read -p "Enter environment name (default: arm_nbv): " ENV_NAME
+    ENV_NAME=${ENV_NAME:-arm_nbv}
 else
     ENV_NAME=$1
 fi

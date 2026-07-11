@@ -8,7 +8,7 @@ from skimage import measure
 import trimesh
 import matplotlib.pyplot as plt
 
-from src.utils.render_mesh import render_mesh
+from arm_nbv.utils.render_mesh import render_mesh
 
 
 def test_render_sdf_mesh(

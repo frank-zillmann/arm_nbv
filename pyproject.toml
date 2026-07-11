@@ -3,12 +3,14 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "tum-adlr-18"
+name = "arm_nbv"
 version = "0.1.0"
-description = "TUM ADLR Project 18"
+description = "Learning next-best-view policies for a wrist-mounted camera on a robot arm to efficiently reconstruct novel scenes"
 readme = "README.md"
 requires-python = ">=3.10"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["src*", "configs*"]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

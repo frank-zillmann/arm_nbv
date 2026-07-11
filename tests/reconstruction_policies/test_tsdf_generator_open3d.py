@@ -19,8 +19,8 @@ from robosuite.utils.camera_utils import (
     get_real_depth_map,
 )
 
-from reconstruction_policies.open3d_reconstruction_policy import Open3DReconstructionPolicy
-from src.utils.plot_SDF_slices import plot_sdf_slices
+from arm_nbv.reconstruction_policies.open3d_reconstruction_policy import Open3DReconstructionPolicy
+from arm_nbv.utils.plot_sdf_slices import plot_sdf_slices
 
 
 def test_tsdf_single_observation(save_dir: str = "./data/test_TSDF_generator_open3d/"):

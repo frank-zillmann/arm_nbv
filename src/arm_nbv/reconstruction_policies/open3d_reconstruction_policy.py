@@ -3,7 +3,7 @@ from typing import Optional
 import numpy as np
 import open3d as o3d
 
-from src.reconstruction_policies.base import BaseReconstructionPolicy
+from arm_nbv.reconstruction_policies.base import BaseReconstructionPolicy
 
 
 def get_default_device() -> str:

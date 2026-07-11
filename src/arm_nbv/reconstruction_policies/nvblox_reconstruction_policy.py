@@ -7,7 +7,7 @@ os.environ["GLOG_minloglevel"] = "1"
 
 import numpy as np
 import torch
-from src.reconstruction_policies.base import BaseReconstructionPolicy
+from arm_nbv.reconstruction_policies.base import BaseReconstructionPolicy
 from nvblox_torch.mapper import Mapper, QueryType
 from nvblox_torch.mapper_params import MapperParams
 from nvblox_torch.sensor import Sensor

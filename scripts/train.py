@@ -15,16 +15,16 @@ from stable_baselines3.common.callbacks import (
 )
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 
-from src.robot_policies import (
+from arm_nbv.robot_policies import (
     CameraPoseExtractor,
     CameraPoseHistoryExtractor,
     ImageExtractor,
     WeightGridExtractor,
     CombinedExtractor,
 )
-from src.utils.env_factory import make_env_fn
-from src.utils.callbacks import TimingCallback, LoggingEvalCallback, LoggingTrainCallback
-from configs.train_config import TrainConfig
+from arm_nbv.utils.env_factory import make_env_fn
+from arm_nbv.utils.callbacks import TimingCallback, LoggingEvalCallback, LoggingTrainCallback
+from arm_nbv.config import TrainConfig
 
 
 def train(config: TrainConfig, checkpoint: Optional[str] = None):
