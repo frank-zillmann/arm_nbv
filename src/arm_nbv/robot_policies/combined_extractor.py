@@ -24,8 +24,7 @@ class CombinedExtractor(BaseFeaturesExtractor):
     Example:
         extractors_config = [
             (CameraPoseExtractor, {"features_dim": 32, "hidden_dims": [64, 64]}),
-            (MeshRenderingExtractor, {"features_dim": 128}),
-            (SDFWeightExtractor, {"features_dim": 128, "grid_size": 32}),
+            (Grid3DExtractor, {"features_dim": 128}),
         ]
         extractor = CombinedExtractor(obs_space, features_dim=256, extractors_config=extractors_config)
     """

@@ -1,6 +1,6 @@
-/TODO*
 /data/
 /results/
+
 *.pdf
 *.log
 *.aux

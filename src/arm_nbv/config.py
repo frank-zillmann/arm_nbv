@@ -22,7 +22,7 @@ class TrainConfig:
     render_height: int = 128
     render_width: int = 128
 
-    # Observations to include (camera_pose, mesh_render, sdf_grid, weight_grid)
+    # Observations to include (camera_pose, camera_pose_history, recon_grid, wrist_image)
     observations: List[str] = field(default_factory=lambda: ["camera_pose"])
 
     # Reward settings
@@ -35,22 +35,33 @@ class TrainConfig:
     reward_mode: str = "delta"  # "exponential" or "delta"
     action_penalty_scale: float = 0.1
 
+    # Point-cloud reconstruction
+    point_min_dist: float = 0.005  # dedup: discard a new point within this of an existing one (m)
+    depth_max: float = 1.0  # max integrated depth (m)
+    coverage_distance: float = 0.01  # GT point counts as covered if a recon point is within this (m)
+    coverage_n_samples: int = 50_000  # GT surface points sampled per episode for the coverage reward
+
     # Network
     features_dim: int = 256
     hidden_dims: List[int] = field(default_factory=lambda: [256, 256])
+    recon_grid_size: int = 32  # Resolution of the derived 3D observation grid
 
-    # PPO and training
+    # RL algorithm and training
+    algorithm: str = "sac"  # off-policy SAC (replay buffer, sample efficient)
     total_timesteps: int = 2_000_000
-    n_envs: int = 1  # Number of parallel environments, PPO default is 1
+    n_envs: int = 1  # Number of parallel environments (SAC default is 1)
     lr: float = 3e-4  # Learning rate
-    n_steps: int = 512  # Steps per env before update
-    batch_size: int = 128  # Minibatch size for gradient updates, PPO default is 64
-    n_epochs: int = 5  # Passes over rollout buffer per update, PPO default is 10
-    gamma: float = 0.98  # Discount factor, PPO default is 0.99
-    gae_lambda: float = 0.95  # GAE lambda for advantage estimation
-    clip_range: float = 0.2  # PPO clipping parameter
-    ent_coef: float = 0.01  # Entropy bonus for exploration, PPO default is 0.0
-    seed: int = 0  # Random seed for PPO (not for envs)
+    gamma: float = 0.98  # Discount factor (fits the short 32-step horizon)
+    seed: int = 0  # Random seed for the RL algorithm (not for envs)
+
+    # SAC (off-policy) hyperparameters
+    buffer_size: int = 100_000  # Replay buffer size (uint8 grid obs -> ~3GB at 100k)
+    learning_starts: int = 1_000  # Steps of random exploration before learning
+    batch_size: int = 256  # Minibatch size for gradient updates
+    tau: float = 0.005  # Target network soft-update coefficient
+    train_freq: int = 1  # Env steps between gradient updates
+    gradient_steps: int = 1  # Gradient steps per update
+    ent_coef: str = "auto"  # Entropy temperature ("auto" = learned)
 
     checkpoint_freq: int = 100_000 # every n_envs * checkpoint_freq steps
     eval_freq: int = 100_000 # every n_envs * eval_freq steps

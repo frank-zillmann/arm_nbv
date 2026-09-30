@@ -1,0 +1,27 @@
+reconstruction_policy: pointcloud
+reconstruction_metric: point_cloud_coverage
+
+observations:
+  - camera_pose
+  - camera_pose_history
+  - recon_grid
+#  - wrist_image  # optional: current wrist RGB
+
+# Point-cloud reconstruction
+point_min_dist: 0.005
+depth_max: 1.0
+coverage_distance: 0.01
+coverage_n_samples: 50000  # GPU distance computation makes this cheap; lower to ~20000 on CPU
+recon_grid_size: 32
+
+# SAC (off-policy) hyperparameters
+algorithm: sac
+buffer_size: 100000
+learning_starts: 1000
+batch_size: 256
+tau: 0.005
+train_freq: 1
+gradient_steps: 1
+ent_coef: auto
+lr: 0.0003
+gamma: 0.98

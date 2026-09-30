@@ -1,4 +1,4 @@
-"""Train 3D reconstruction policy with PPO."""
+"""Train 3D reconstruction policy with SAC (off-policy, replay buffer)."""
 
 import argparse
 import os
@@ -8,7 +8,7 @@ from typing import Optional
 
 import numpy as np
 import torch
-from stable_baselines3 import PPO
+from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import (
     CheckpointCallback,
     CallbackList,
@@ -19,7 +19,7 @@ from arm_nbv.robot_policies import (
     CameraPoseExtractor,
     CameraPoseHistoryExtractor,
     ImageExtractor,
-    WeightGridExtractor,
+    Grid3DExtractor,
     CombinedExtractor,
 )
 from arm_nbv.utils.env_factory import make_env_fn
@@ -28,9 +28,9 @@ from arm_nbv.config import TrainConfig
 
 
 def train(config: TrainConfig, checkpoint: Optional[str] = None):
-    """Train PPO agent."""
+    """Train SAC agent."""
     # Setup paths
-    run_name = f"ppo_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    run_name = f"{config.algorithm}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     log_dir = Path(config.log_dir) / run_name
     log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,18 +74,17 @@ def train(config: TrainConfig, checkpoint: Optional[str] = None):
                 },
             )
         )
-    if "mesh_render" in config.observations or "birdview_image" in config.observations:
-        image_keys = [k for k in config.observations if k in ("mesh_render", "birdview_image")]
+    if "wrist_image" in config.observations:
         extractors_config.append(
-            (ImageExtractor, {"features_dim": 128, "image_keys": image_keys})
+            (ImageExtractor, {"features_dim": 128, "image_keys": ["wrist_image"]})
         )
+    if "recon_grid" in config.observations:
+        extractors_config.append((Grid3DExtractor, {"features_dim": 128}))
     if "sdf_grid" in config.observations:
         # TODO: Add SdfGridExtractor when implemented
         print(
             "Warning: sdf_grid observation enabled but no SdfGridExtractor exists yet"
         )
-    if "weight_grid" in config.observations:
-        extractors_config.append((WeightGridExtractor, {"features_dim": 128}))
 
     policy_kwargs = {
         "features_extractor_class": CombinedExtractor,
@@ -93,7 +92,7 @@ def train(config: TrainConfig, checkpoint: Optional[str] = None):
             "features_dim": config.features_dim,
             "extractors_config": extractors_config,
         },
-        "net_arch": dict(pi=config.hidden_dims, vf=config.hidden_dims),
+        "net_arch": config.hidden_dims,  # shared by actor and critics
     }
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -102,21 +101,22 @@ def train(config: TrainConfig, checkpoint: Optional[str] = None):
     # Create or load model
     if checkpoint:
         print(f"Resuming from: {checkpoint}")
-        model = PPO.load(
+        model = SAC.load(
             checkpoint, env=train_env, tensorboard_log=str(log_dir), device=device
         )
     else:
-        model = PPO(
+        model = SAC(
             "MultiInputPolicy",  # Required for Dict observation space
             train_env,
             policy_kwargs=policy_kwargs,
             learning_rate=config.lr,
-            n_steps=config.n_steps,
+            buffer_size=config.buffer_size,
+            learning_starts=config.learning_starts,
             batch_size=config.batch_size,
-            n_epochs=config.n_epochs,
+            tau=config.tau,
             gamma=config.gamma,
-            gae_lambda=config.gae_lambda,
-            clip_range=config.clip_range,
+            train_freq=config.train_freq,
+            gradient_steps=config.gradient_steps,
             ent_coef=config.ent_coef,
             verbose=1,
             tensorboard_log=str(log_dir),

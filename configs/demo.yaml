@@ -1,8 +1,6 @@
 # Lightweight config for generation of sharp demo images
 # Only specify values you want to override; defaults in train_config.py apply
 n_envs: 1
-n_steps: 2
-n_epochs: 1
 batch_size: 2
 total_timesteps: 1
 eval_freq: 2

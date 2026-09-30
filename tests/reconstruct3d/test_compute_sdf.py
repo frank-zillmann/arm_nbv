@@ -29,7 +29,7 @@ def test_compute_sdf(env, path_to_save="./data/test_reconstruct3D_env/sdf_slices
 
     # Use the environment's built-in method to compute SDF
     print("\nComputing SDF using env.compute_static_env_sdf()...")
-    sdf_grid, bbox_center, bbox_size = env.compute_static_env_sdf(geom_groups=[1])
+    sdf_grid, bbox_center, bbox_size = env.compute_static_env_sdf()
     sdf_size = env.sdf_size
 
     print(f"SDF grid shape: {sdf_grid.shape}")

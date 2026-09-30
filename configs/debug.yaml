@@ -1,8 +1,9 @@
 # Lightweight config for laptop debugging (4 cores, 16GB, no GPU)
 # Only specify values you want to override; defaults in train_config.py apply
 n_envs: 1
-n_steps: 32
 batch_size: 32
+learning_starts: 32
+buffer_size: 2000
 total_timesteps: 64
 eval_freq: 32
 checkpoint_freq: 32

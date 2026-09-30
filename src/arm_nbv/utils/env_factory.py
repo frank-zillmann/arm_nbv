@@ -9,27 +9,37 @@ from arm_nbv.reconstruct3d_gym_wrapper import Reconstruct3DGymWrapper
 from arm_nbv.config import TrainConfig
 
 
-def create_reconstruction_policy(policy_name: str):
-    """Create a reconstruction policy by name.
-    
+def create_reconstruction_policy(config: TrainConfig):
+    """Create a reconstruction policy from config.
+
     Args:
-        policy_name: 'open3d' or 'nvblox'
-        
+        config: Training configuration (``reconstruction_policy`` selects the backend)
+
     Returns:
-        Reconstruction policy instance with default parameters
+        Reconstruction policy instance
     """
-    if policy_name == "open3d":
+    policy_name = config.reconstruction_policy
+    if policy_name == "pointcloud":
+        from arm_nbv.reconstruction_policies.pointcloud_reconstruction_policy import (
+            PointCloudReconstructionPolicy,
+        )
+        return PointCloudReconstructionPolicy(
+            point_min_dist=config.point_min_dist,
+            depth_max=config.depth_max,
+        )
+
+    elif policy_name == "open3d":
         from arm_nbv.reconstruction_policies.open3d_reconstruction_policy import (
             Open3DReconstructionPolicy,
         )
         return Open3DReconstructionPolicy()
-        
+
     elif policy_name == "nvblox":
         from arm_nbv.reconstruction_policies.nvblox_reconstruction_policy import (
             NvbloxReconstructionPolicy,
         )
         return NvbloxReconstructionPolicy()
-        
+
     else:
         raise ValueError(f"Unknown reconstruction policy: {policy_name}")
 
@@ -53,8 +63,8 @@ def create_env(
     Returns:
         Environment instance (optionally wrapped with Monitor)
     """
-    reconstruction_policy = create_reconstruction_policy(config.reconstruction_policy)
-    
+    reconstruction_policy = create_reconstruction_policy(config)
+
     env = Reconstruct3DGymWrapper(
         reconstruction_policy=reconstruction_policy,
         reconstruction_metric=config.reconstruction_metric,
@@ -67,11 +77,14 @@ def create_env(
         render_width=config.render_width,
         collect_timing=collect_timing,
         sdf_gt_size=config.sdf_gt_size,
+        recon_grid_size=config.recon_grid_size,
         bbox_padding=config.bbox_padding,
         reward_scale=config.reward_scale,
         characteristic_error=config.characteristic_error,
         reward_mode=config.reward_mode,
         action_penalty_scale=config.action_penalty_scale,
+        coverage_distance=config.coverage_distance,
+        coverage_n_samples=config.coverage_n_samples,
         eval_log_dir=eval_log_dir,
     )
     

@@ -2,14 +2,14 @@
 
 import argparse
 import numpy as np
-from stable_baselines3 import PPO
+from stable_baselines3 import SAC
 from arm_nbv.reconstruct3d_gym_wrapper import Reconstruct3DGymWrapper
 
 
 def evaluate(checkpoint: str, n_episodes: int = 10):
     """Evaluate trained model."""
     print(f"Loading: {checkpoint}")
-    model = PPO.load(checkpoint)
+    model = SAC.load(checkpoint)
     env = Reconstruct3DGymWrapper()
 
     rewards = []

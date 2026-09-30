@@ -141,11 +141,14 @@ class Reconstruct3DGymWrapper(gym.Env):
         render_height=64,
         render_width=64,
         sdf_gt_size=32,
+        recon_grid_size=32,
         bbox_padding=0.05,
         reward_mode="exponential",
         reward_scale=1.0,
         characteristic_error=0.01,
         action_penalty_scale=0.0,
+        coverage_distance=0.01,
+        coverage_n_samples=50_000,
         collect_timing=False,
         eval_log_dir: Optional[Path] = None,
     ):
@@ -159,10 +162,13 @@ class Reconstruct3DGymWrapper(gym.Env):
         self.timing_stats = TimingStats(enabled=collect_timing)
         self.reconstruction_metric = reconstruction_metric
         self.sdf_gt_size = sdf_gt_size
+        self.recon_grid_size = recon_grid_size
         self.reward_mode = reward_mode
         self.reward_scale = reward_scale
         self.characteristic_error = characteristic_error
         self.action_penalty_scale = action_penalty_scale
+        self.coverage_distance = coverage_distance
+        self.coverage_n_samples = coverage_n_samples
 
         # Observations to include in observation space
         self.observations = observations
@@ -213,10 +219,6 @@ class Reconstruct3DGymWrapper(gym.Env):
         else:
             self.camera_names = ["robot0_eye_in_hand"] # for performance
 
-        # Ensure birdview camera renders images when birdview_image observation is used
-        if "birdview_image" in self.observations and "birdview" not in self.camera_names:
-            self.camera_names.append("birdview")
-
         self.robot_env = robosuite.make(
             env_name="Reconstruct3D",
             robots="Panda",
@@ -244,30 +246,23 @@ class Reconstruct3DGymWrapper(gym.Env):
             obs_space_dict["camera_rotation_matrix"] = spaces.Box(
                 low=-np.inf, high=np.inf, shape=(3, 3), dtype=np.float32
             )
-        if "mesh_render" in self.observations:
-            obs_space_dict["mesh_render"] = spaces.Box(
+        if "wrist_image" in self.observations:
+            obs_space_dict["wrist_image"] = spaces.Box(
                 low=0.0,
                 high=1.0,
-                shape=(1, *self.render_resolution),
+                shape=(3, camera_height, camera_width),
                 dtype=np.float32,
             )
-        if "birdview_image" in self.observations:
-            obs_space_dict["birdview_image"] = spaces.Box(
-                low=0.0,
-                high=1.0,
-                shape=(3, *self.render_resolution),
-                dtype=np.float32,
+        if "recon_grid" in self.observations:
+            obs_space_dict["recon_grid"] = spaces.Box(
+                low=0,
+                high=255,
+                shape=(1, recon_grid_size, recon_grid_size, recon_grid_size),
+                dtype=np.uint8,
             )
         if "sdf_grid" in self.observations:
             obs_space_dict["sdf_grid"] = spaces.Box(
                 low=-np.inf,
-                high=np.inf,
-                shape=(1, sdf_gt_size, sdf_gt_size, sdf_gt_size),
-                dtype=np.float32,
-            )
-        if "weight_grid" in self.observations:
-            obs_space_dict["weight_grid"] = spaces.Box(
-                low=0.0,
                 high=np.inf,
                 shape=(1, sdf_gt_size, sdf_gt_size, sdf_gt_size),
                 dtype=np.float32,
@@ -309,15 +304,14 @@ class Reconstruct3DGymWrapper(gym.Env):
         return pose_7d
 
     def _get_obs(
-        self, mesh=None, sdf_grid=None, weight_grid=None, obs_dict=None
+        self, recon_grid=None, sdf_grid=None, obs_dict=None
     ) -> Dict[str, np.ndarray]:
-        """Get current observation (camera pose + reconstruction render + optional SDF/weights).
+        """Assemble the observation dict from the configured observation keys.
 
         Args:
-            mesh: Tuple of (vertices, faces) for mesh rendering
-            sdf_grid: SDF grid for SDF observations
-            weight_grid: Weight grid for weight observations
-            obs_dict: Raw robosuite observation dict (needed for birdview_render)
+            recon_grid: (1, G, G, G) uint8 reconstruction grid for ``recon_grid``.
+            sdf_grid: SDF grid for the (legacy) ``sdf_grid`` observation.
+            obs_dict: Raw robosuite observation dict (for ``wrist_image``).
         """
         obs = {}
 
@@ -327,52 +321,23 @@ class Reconstruct3DGymWrapper(gym.Env):
             )[:3, :3].astype(np.float32)
 
         if "camera_pose" in self.observation_space.spaces:
-            camera_pose = self._get_camera_pose()
-            obs["camera_pose"] = camera_pose
+            obs["camera_pose"] = self._get_camera_pose()
 
         if "camera_pose_history" in self.observation_space.spaces:
             obs["camera_pose_history"] = self._pose_history.copy()
 
-        if mesh is not None:
-            # Get birdview camera matrices for rendering reconstruction
-            # Pass render resolution to get intrinsic matrix scaled appropriately
-            intrinsic = get_camera_intrinsic_matrix(
-                self.robot_env.sim,
-                "birdview",
-                self.render_resolution[0],
-                self.render_resolution[1],
-            )
-            extrinsic = get_camera_extrinsic_matrix(self.robot_env.sim, "birdview")
-
-            # Render current reconstruction from birdview (grayscale for feature extraction)
-            vertices, faces = mesh
-            render = render_mesh(
-                vertices,
-                faces,
-                extrinsic,
-                intrinsic,
-                self.render_resolution,
-                grayscale=True,
-            )
-            obs["mesh_render"] = render[np.newaxis, :, :].astype(np.float32)
-
-        if "birdview_image" in self.observation_space.spaces:
-            birdview_rgb = obs_dict["birdview_image"]
+        if "wrist_image" in self.observation_space.spaces:
+            wrist_rgb = obs_dict["robot0_eye_in_hand_image"]
             # robosuite returns (H, W, 3) uint8 -> (3, H, W) float32 in [0, 1]
-            obs["birdview_image"] = (
-                birdview_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
+            obs["wrist_image"] = (
+                wrist_rgb.transpose(2, 0, 1).astype(np.float32) / 255.0
             )
+
+        if recon_grid is not None:
+            obs["recon_grid"] = recon_grid.astype(np.uint8)
 
         if sdf_grid is not None:
             obs["sdf_grid"] = sdf_grid.reshape(
-                1, self.sdf_gt_size, self.sdf_gt_size, self.sdf_gt_size
-            ).astype(np.float32)
-        if weight_grid is not None:
-            # n_nonzero_weights = np.sum(weight_grid > 0)
-            # print(
-            #     f"Weight grid non-zero voxels: {n_nonzero_weights}/{weight_grid.size}"
-            # )
-            obs["weight_grid"] = weight_grid.reshape(
                 1, self.sdf_gt_size, self.sdf_gt_size, self.sdf_gt_size
             ).astype(np.float32)
 
@@ -441,40 +406,44 @@ class Reconstruct3DGymWrapper(gym.Env):
             )
 
         # Get required reconstructions
+        bbox_kwargs = dict(
+            bbox_center=self.robot_env.bbox_center,
+            bbox_size=self.robot_env.bbox_size,
+        )
         mesh_reconstruction = None
-        tsdf_reconstruction = None
+        recon_grid = None
+        reward_reconstruction = None
         with self.timing_stats.time("reconstruction_total"):
-            if (
-                self.reconstruction_metric == "chamfer_distance"
-                or self.eval_mode
-                or "mesh_render" in self.observation_space.spaces
-            ):
+            # Mesh: needed for the chamfer metric and always for eval visualization
+            if self.reconstruction_metric == "chamfer_distance" or self.eval_mode:
                 mesh_reconstruction = self.reconstruction_policy.reconstruct(
-                    type="mesh"
+                    type="mesh", **bbox_kwargs
                 )
 
-            if (
-                self.reconstruction_metric == "voxelwise_tsdf_error"
-                or "sdf_grid" in self.observation_space.spaces
-                or "weight_grid" in self.observation_space.spaces
-            ):
-                tsdf_reconstruction = self.reconstruction_policy.reconstruct(
-                    type="tsdf",
-                    sdf_size=self.sdf_gt_size,
-                    bbox_center=self.robot_env.bbox_center,
-                    bbox_size=self.robot_env.bbox_size,
-                )
-
-        # Compute reward based on reconstruction quality
-        with self.timing_stats.time("reward_total"):
+            # Reconstruction passed to the reward, depending on the metric
             if self.reconstruction_metric == "chamfer_distance":
                 reward_reconstruction = mesh_reconstruction
             elif self.reconstruction_metric == "voxelwise_tsdf_error":
-                reward_reconstruction = tsdf_reconstruction
+                reward_reconstruction = self.reconstruction_policy.reconstruct(
+                    type="tsdf", sdf_size=self.sdf_gt_size, **bbox_kwargs
+                )
+            elif self.reconstruction_metric == "point_cloud_coverage":
+                reward_reconstruction = self.reconstruction_policy.reconstruct(
+                    type="point_cloud"
+                )
             else:
                 raise ValueError(
                     f"Unknown reconstruction metric: {self.reconstruction_metric}"
                 )
+
+            # 3D grid observation derived from the reconstruction
+            if "recon_grid" in self.observation_space.spaces:
+                recon_grid = self.reconstruction_policy.reconstruct(
+                    type="grid", grid_size=self.recon_grid_size, **bbox_kwargs
+                )
+
+        # Compute reward based on reconstruction quality
+        with self.timing_stats.time("reward_total"):
             reward, reward_info_dict = self.robot_env.reward(
                 action=action,
                 reconstruction=reward_reconstruction,
@@ -487,6 +456,8 @@ class Reconstruct3DGymWrapper(gym.Env):
                 reward_scale=self.reward_scale,
                 characteristic_error=self.characteristic_error,
                 action_penalty_scale=self.action_penalty_scale,
+                coverage_distance=self.coverage_distance,
+                coverage_n_samples=self.coverage_n_samples,
             )
 
         # Save eval data if in eval mode
@@ -495,30 +466,12 @@ class Reconstruct3DGymWrapper(gym.Env):
                 reward_info_dict=reward_info_dict,
                 obs_dict=obs_dict,
                 mesh_reconstruction=mesh_reconstruction,
-                sdf_reconstruction=(
-                    tsdf_reconstruction[0] if tsdf_reconstruction is not None else None
-                ),
+                sdf_reconstruction=None,
             )
 
         with self.timing_stats.time("obs_creation_total"):
             obs = self._get_obs(
-                mesh=(
-                    mesh_reconstruction
-                    if "mesh_render" in self.observation_space.spaces
-                    else None
-                ),
-                sdf_grid=(
-                    tsdf_reconstruction[0]
-                    if "sdf_grid" in self.observation_space.spaces
-                    and tsdf_reconstruction is not None
-                    else None
-                ),
-                weight_grid=(
-                    tsdf_reconstruction[1]
-                    if "weight_grid" in self.observation_space.spaces
-                    and tsdf_reconstruction is not None
-                    else None
-                ),
+                recon_grid=recon_grid,
                 obs_dict=obs_dict,
             )
 
@@ -571,7 +524,7 @@ class Reconstruct3DGymWrapper(gym.Env):
 
         # Compute ground truth mesh for reward calculation (chamfer distance)
         with self.timing_stats.time("reset_mesh_total"):
-            self.robot_env.compute_static_env_mesh()
+            self.robot_env.compute_gt_mesh()
 
         # Compute SDF ground truth if using TSDF-based metric
         with self.timing_stats.time("reset_sdf_total"):
@@ -657,8 +610,8 @@ class Reconstruct3DGymWrapper(gym.Env):
 
             if self._step_count == 0:
                 rendered_gt = render_mesh(
-                    self.robot_env.static_env_vertices,
-                    self.robot_env.static_env_faces,
+                    self.robot_env.gt_vertices,
+                    self.robot_env.gt_faces,
                     extrinsic,
                     intrinsic,
                     resolution=self.render_resolution,
